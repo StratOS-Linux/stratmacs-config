@@ -337,7 +337,7 @@ Completion-related changes go here.
 #+end_src
 
 * Org Mode
-Easily one of Emacs' best features, this editor paradigm transforms the editing experience into a divine experience.
+Easily one of Emac's best features. This editor paradigm transforms the editing experience into a divine experience.
 #+begin_src emacs-lisp
 (setq org-src-preserve-indentation nil
       org-src-tab-acts-natively t
