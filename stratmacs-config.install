@@ -1,0 +1,5 @@
+post_install() {
+  echo "==> The Emacs configuration has been installed to /etc/skel/.config/emacs"
+  echo "==> To use it, copy it to your home directory:"
+  echo "    cp -r /etc/skel/.config/emacs ~/.config/"
+}
