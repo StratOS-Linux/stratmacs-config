@@ -1,0 +1,29 @@
+#!/usr/bin/env bash
+
+# Set the alternate editor to Emacs
+export ALTERNATE_EDITOR="emacs"
+
+# Check if Emacs is running as a daemon
+DAEMON_PID=$(pgrep -f "emacs --daemon")
+BACKGROUND_DAEMON_PID=$(pgrep -f "emacs --bg-daemon")
+FOREGROUND_DAEMON_PID=$(pgrep -f "emacs --fg-daemon")
+
+# Check if Emacs GUI is running
+GUI_PID=$(pgrep -f "emacs")
+
+# if [[ -n $DAEMON_PID || -n $FOREGROUND_DAEMON_PID || -n $BACKGROUND_DAEMON_PID ]]; then
+#    # if daemon is active, open thru client
+#    emacsclient -nc "$@"
+# elif [[ -z $DAEMON_PID && -z $FOREGROUND_DAEMON_PID && -z $BACKGROUND_DAEMON_PID ]]; then
+#    emacs "$@"
+# fi
+
+# If Emacs is running and the daemon isn't, start the daemon
+if [[ -z $BACKGROUND_DAEMON_PID && -z $DAEMON_PID && -z $FOREGROUND_DAEMON_PID  && -n $GUI_PID ]]; then
+    # notify-send "Emacs isn't running, starting daemon" 2>/dev/null # Emacs sends this now
+    emacs --daemon 2&>/dev/null
+    emacsclient -nc "$@"
+# if the daemon is running, restart it
+elif [[ -n $DAEMON_PID || -n $BACKGROUND_DAEMON_PID || -n $FOREGROUND_DAEMON_PID ]]; then
+    emacsclient -nc "$@"
+fi
