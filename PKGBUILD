@@ -1,11 +1,13 @@
 # Maintainer: @zstg <zestig@duck.com>
 pkgname=stratmacs-config
 pkgver=1.0
-pkgrel=3
+pkgrel=4
 pkgdesc="Emacs configuration for StratOS"
 arch=('any')
 license=('GPL3')
-depends=('emacs')
+depends=(
+    # 'emacs'
+)
 source=()
 install=stratmacs-config.install
 
