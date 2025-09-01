@@ -1,7 +1,7 @@
 # Maintainer: @zstg <zestig@duck.com>
 pkgname=stratmacs-config
 pkgver=1.0
-pkgrel=2
+pkgrel=3
 pkgdesc="Emacs configuration for StratOS"
 arch=('any')
 license=('GPL3')
@@ -11,6 +11,7 @@ install=stratmacs-config.install
 
 prepare() {
     cp -r $startdir/.config/ $srcdir/
+    cp -r $startdir/usr $srcdir/
 }
 
 package() {
