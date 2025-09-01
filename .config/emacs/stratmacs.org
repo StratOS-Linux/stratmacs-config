@@ -129,7 +129,7 @@ Themes and configuration ported from [[https://github.com/doomemacs/doomemacs][D
   (setq doom-themes-enable-bold t
         custom-safe-themes t
         doom-themes-enable-italic t)
-  (load-theme 'doom-vibrant t)
+  (load-theme 'doom-tokyo-night t)
   (doom-themes-org-config))
 
 (use-package doom-modeline
@@ -951,3 +951,220 @@ Rainbow mode is used to colourize colour names in buffers.
 (use-package rainbow-mode
   :hook prog-mode)
 #+end_src
+
+* App launcher
+#+BEGIN_SRC emacs-lisp
+(use-package app-launcher
+  :vc (:url "https://github.com/SebastienWae/app-launcher"))
+;; create a global keyboard shortcut with the following code
+;; emacsclient -cF "((visibility . nil))" -e "(emacs-run-launcher)"
+
+(defun find-executables ()
+  "Find all executables in /usr/bin, /usr/local/bin, and ~/.dotfiles/scripts."
+  (let ((executables '()))
+    (dolist (dir '("/usr/bin" "/usr/local/bin"))
+      (when (file-directory-p dir)
+        (dolist (file (directory-files dir t ".*"))
+          (when (and (file-executable-p file)
+                     (not (file-directory-p file)))
+            (push file executables)))))
+    executables))
+
+(defun select-and-execute-executable ()
+  "Interactively select an executable from $PATH and execute it in a terminal."
+  (interactive)
+  (let* ((executables (find-executables))
+         (selected (completing-read "Select executable: " executables)))
+    (when selected
+      (shell-command (concat selected "& disown")))))
+
+(defun connect-to-wifi ()
+  "List and connect to available Wi-Fi networks using nmcli."
+  ;; nmcli -tf SSID dev wifi list | uniq
+  ;; `call-process' does not support piping, so we use Elisp to handle `uniq' functionality.
+  ;; Connect to WiFi by piping a password to nmcli --ask.
+  (interactive)
+  (require 'notifications)
+  (let* ((networks (split-string (shell-command-to-string "nmcli -t -f SSID device wifi list") "\n" t))
+         (selected (completing-read "Select WiFi network: " networks)))
+    (when selected
+      (let* ((password (read-passwd (format "Password for %s: " selected)))
+             (buffer (get-buffer-create "*nmcli-connect*")))
+        (with-current-buffer buffer
+          (erase-buffer)
+          (let ((proc (make-process
+                       :name "nmcli-connect"
+                       :buffer buffer
+                       :command (list "nmcli" "--ask" "device" "wifi" "connect" selected)
+                       :noquery t
+                       :sentinel (lambda (proc event)
+                                   (when (string= event "finished\n")
+                                     (if (zerop (process-exit-status proc))
+                                         (notifications-notify
+                                          :title "WiFi Connected"
+                                          :body (format "Connected to '%s'" selected)
+                                          :app-name "GNU Emacs 30.2"
+                                          :icon "emacs"
+                                          :urgency 'normal)
+                                       (notifications-notify
+                                        :title "Connection Failed"
+                                        :body (format "Failed to connect to '%s'" selected)
+					:app-name "GNU Emacs 30.2"
+					:icon "emacs"
+					:urgency 'critical)))))))
+            (process-send-string proc (concat password "\n"))))))))
+
+
+(defun connect-to-bluetooth ()
+  "Connect to a Bluetooth device using bluetoothctl."
+  (interactive)
+  (require 'notifications)
+  (let* ((devices (split-string 
+                   (shell-command-to-string 
+                    "bluetoothctl devices | awk '{print $3 \" \" $2}'") 
+                   "\n" t))
+         (selected (completing-read "Select Bluetooth device: " devices)))
+    (when selected
+      (let* ((mac-addr (car (split-string selected)))
+             (buffer (get-buffer-create "*bluetoothctl-connect*")))
+        (with-current-buffer buffer
+          (erase-buffer)
+          (let ((proc (make-process
+                       :name "bluetoothctl-connect"
+                       :buffer buffer
+                       :command '("bluetoothctl")
+                       :noquery t
+                       :sentinel (lambda (proc event)
+                                  (when (string= event "finished\n")
+                                    (if (zerop (process-exit-status proc))
+                                        (notifications-notify
+                                         :title "Bluetooth Connected"
+                                         :body (format "Connected to '%s'" selected)
+                                         :urgency 'normal)
+                                      (notifications-notify
+                                       :title "Connection Failed"
+                                       :body (format "Failed to connect to '%s'" selected)
+                                       :urgency 'critical))))))
+            (process-send-string proc (format "connect %s\n" mac-addr))
+            (process-send-string proc "quit\n"))))))))
+
+(defun emacs-run-action (action)
+  "Run Emacs action such as launcher, desktop, bookmarks, or symbols."
+  (let ((frame-properties '((name . "emacs-prompt")
+                            (minibuffer . only)
+                            (fullscreen . 0) ; no fullscreen
+                            (undecorated . t) ; remove title bar
+                            ;;(auto-raise . t) ; focus on this frame
+                            ;;(tool-bar-lines . 0)
+                            ;;(menu-bar-lines . 0)
+                            (internal-border-width . 10)
+                            (width . 80)
+                            (height . 11))))
+    (with-selected-frame
+        (make-frame frame-properties)
+      (unwind-protect
+          (cond
+           ((eq action 'launcher) (select-and-execute-executable))
+           ((eq action 'desktop) (app-launcher-run-app))
+           ((eq action 'bookmarks) (bookmark-launcher-run-bookmark))
+	   ((eq action 'wifi) (connect-to-wifi))
+	   ((eq action 'bluetooth) (connect-to-bluetooth))
+           ((eq action 'symbols)  (chars-launcher-copy-char)))
+        (delete-frame)))))
+
+(defun emacs-run-launcher ()
+  (interactive)
+  (emacs-run-action 'launcher))
+(defun emacs-run-symbols ()
+  (interactive)
+  (emacs-run-action 'symbols))
+(defun emacs-run-bookmarks ()
+  (interactive)
+  (emacs-run-action 'bookmarks))
+(defun emacs-run-desktop ()
+  (interactive)
+  (emacs-run-action 'desktop))
+(defun emacs-run-wifi ()
+  (interactive)
+  (emacs-run-action 'wifi))
+#+END_COMMENT
+** Minibuffer tweaks
+#+BEGIN_SRC emacs-lisp
+(setq enable-recursive-minibuffers t)
+#+END_SRC
+
+** Bookmarks
+#+BEGIN_SRC emacs-lisp
+(defvar bookmark-launcher-bookmarks-file "~/.dotfiles/misc/bookmarks.json")
+(defun bookmark-launcher-read-bookmarks ()
+  "Read bookmarks from the JSON file."
+  (interactive)
+  (with-temp-buffer
+    (insert-file-contents bookmark-launcher-bookmarks-file)
+    (json-read)))
+
+(defun bookmark-launcher-list-bookmarks ()
+  "List bookmarks."
+  (interactive)
+  (let ((bookmarks-data (bookmark-launcher-read-bookmarks)))
+    (mapcar (lambda (bookmark)
+              (cons (cdr (assoc 'title bookmark))
+                    (cdr (assoc 'url bookmark))))
+            (cdr (assoc 'bookmarks bookmarks-data)))))
+
+(defun bookmark-launcher-run-bookmark ()                                       
+  "Run the selected bookmark."                                                 
+  (interactive)                                                                
+  (let ((bookmarks (bookmark-launcher-list-bookmarks))                         
+        (chosen-bookmark (completing-read "Open bookmark: " (mapcar #'car (bookmark-launcher-list-bookmarks)) nil t)))                                       
+    (when (assoc chosen-bookmark bookmarks)                                    
+      (browse-url (cdr (assoc chosen-bookmark bookmarks)))))) 
+#+END_SRC
+
+** Emojis
+#+BEGIN_SRC emacs-lisp
+(use-package emojify
+  :hook (prog-mode . global-emojify-mode)
+  :config
+  (when (member "Noto Color Emoji" (font-family-list))
+    (set-fontset-font
+     t 'symbol (font-spec :family "Noto Color Emoji") nil 'prepend)))
+  ;; (setq emojify-display-style 'unicode)
+  ;; (setq emojify-emoji-styles '(github unicode ascii))
+
+
+(defun chars-launcher-read-chars ()
+  "Read characters from the JSON file."
+  (interactive)
+  (with-temp-buffer
+    (insert-file-contents "~/.dotfiles/misc/unicode_data_flat.json")
+    (goto-char (point-min))
+    (json-read)))
+
+(defun chars-launcher-list-chars ()
+  "List characters."
+  (interactive)
+  (let ((chars-data (chars-launcher-read-chars)))
+    (mapcar (lambda (pair)
+              (let ((char (cdr pair)))
+                (if (string-prefix-p "\"" char)
+                    (cons (substring char 1 -1) (car pair))
+                  (cons char (car pair)))))
+            chars-data)))
+
+(defun chars-launcher-copy-char ()
+  "Copy the selected character to clipboard."
+  (interactive)
+  (let* ((chars (chars-launcher-list-chars))
+         (char-names (mapcar #'car chars))
+         (chosen-char (completing-read "Copy character: " char-names nil t))
+         (char-data (assoc chosen-char chars)))
+    (if char-data
+        (let ((char (cdr char-data)))
+          (with-temp-buffer
+            (insert (format "%s" char))
+            ;; don't use the native Emacs clipboard, it doesn't run in the standalone frame for some reason - might as well use wl-copy
+            (call-process-region (point-min) (point-max) "wl-copy" nil 0 nil))
+          (start-process "notify-send" nil "notify-send" "Emacsoji" (format "%s copied to clipboard!" char)))
+      (start-process "notify-send" nil "notify-send" "Character not found"))))
+#+END_SRC

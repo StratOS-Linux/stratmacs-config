@@ -1,7 +1,7 @@
 # Maintainer: @zstg <zestig@duck.com>
 pkgname=stratmacs-config
 pkgver=1.0
-pkgrel=1
+pkgrel=2
 pkgdesc="Emacs configuration for StratOS"
 arch=('any')
 license=('GPL3')
@@ -18,5 +18,5 @@ package() {
     cp -r $srcdir/.config/emacs/ $pkgdir/etc/skel/.config/
 
     install -d $pkgdir/usr/local/
-    cp -r $srcdir/usr/local/bin/ $pkgdir/usr/local/
+    cp -ra $srcdir/usr/local/bin/ $pkgdir/usr/local/
 }

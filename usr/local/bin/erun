@@ -1,0 +1,27 @@
+#!/usr/bin/env fish
+
+function erun
+    set arg $argv[1]
+
+    switch $arg
+        case bookmarks
+            set expr '(emacs-run-bookmarks)'
+        case symbols
+            set expr '(emacs-run-symbols)'
+        case run
+            set expr '(emacs-run-launcher)'
+        case drun
+            set expr '(emacs-run-desktop)'
+        case wifi
+            set expr '(emacs-run-wifi)'
+        case bt
+            set expr '(emacs-run-bluetooth)'
+        case '*'
+            echo "Usage: (bookmarks | symbols | run | drun | wifi | bt)"
+            exit 1
+    end
+
+    /usr/local/bin/emc -cF '((visibility . nil))' -e $expr
+end
+
+erun $argv
