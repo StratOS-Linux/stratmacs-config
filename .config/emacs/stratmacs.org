@@ -1087,7 +1087,7 @@ Rainbow mode is used to colourize colour names in buffers.
 (defun emacs-run-wifi ()
   (interactive)
   (emacs-run-action 'wifi))
-#+END_COMMENT
+#+END_SRC
 ** Minibuffer tweaks
 #+BEGIN_SRC emacs-lisp
 (setq enable-recursive-minibuffers t)
